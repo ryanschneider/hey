@@ -28,6 +28,8 @@ import (
 	"time"
 
 	"golang.org/x/net/http2"
+	"log"
+	"math/rand"
 )
 
 // Max size of the buffer of result channel.
@@ -51,6 +53,8 @@ type Work struct {
 	Request *http.Request
 
 	RequestBody []byte
+
+	RequestBodyLines [][]byte
 
 	// N is the total number of requests to make.
 	N int
@@ -91,6 +95,7 @@ type Work struct {
 	results  chan *result
 	stopCh   chan struct{}
 	start    time.Duration
+	rand     *rand.Rand
 
 	report *report
 }
@@ -107,6 +112,7 @@ func (b *Work) Init() {
 	b.initOnce.Do(func() {
 		b.results = make(chan *result, min(b.C*1000, maxResult))
 		b.stopCh = make(chan struct{}, b.C)
+		b.rand = rand.New(rand.NewSource(time.Now().Unix()))
 	})
 }
 
@@ -145,7 +151,12 @@ func (b *Work) makeRequest(c *http.Client) {
 	var code int
 	var dnsStart, connStart, resStart, reqStart, delayStart time.Duration
 	var dnsDuration, connDuration, resDuration, reqDuration, delayDuration time.Duration
-	req := cloneRequest(b.Request, b.RequestBody)
+
+	body := b.RequestBody
+	if b.RequestBodyLines != nil {
+		body = b.RequestBodyLines[b.rand.Intn(len(b.RequestBodyLines))]
+	}
+	req := cloneRequest(b.Request, body)
 	trace := &httptrace.ClientTrace{
 		DNSStart: func(info httptrace.DNSStartInfo) {
 			dnsStart = now()

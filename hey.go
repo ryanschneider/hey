@@ -29,6 +29,7 @@ import (
 	"strings"
 	"time"
 
+	"bytes"
 	"github.com/rakyll/hey/requester"
 )
 
@@ -39,14 +40,15 @@ const (
 )
 
 var (
-	m           = flag.String("m", "GET", "")
-	headers     = flag.String("h", "", "")
-	body        = flag.String("d", "", "")
-	bodyFile    = flag.String("D", "", "")
-	accept      = flag.String("A", "", "")
-	contentType = flag.String("T", "text/html", "")
-	authHeader  = flag.String("a", "", "")
-	hostHeader  = flag.String("host", "", "")
+	m             = flag.String("m", "GET", "")
+	headers       = flag.String("h", "", "")
+	body          = flag.String("d", "", "")
+	bodyFile      = flag.String("D", "", "")
+	bodyFileLines = flag.String("L", "", "")
+	accept        = flag.String("A", "", "")
+	contentType   = flag.String("T", "text/html", "")
+	authHeader    = flag.String("a", "", "")
+	hostHeader    = flag.String("host", "", "")
 
 	output = flag.String("o", "", "")
 
@@ -86,6 +88,7 @@ Options:
   -A  HTTP Accept header.
   -d  HTTP request body.
   -D  HTTP request body from file. For example, /home/user/file.txt or ./file.txt.
+  -L  HTTP request body from lines in file. One line is randomly used per request.  For example, /home/user/file.txt or ./file.txt.
   -T  Content-type, defaults to "text/html".
   -a  Basic authentication, username:password.
   -x  HTTP Proxy address as host:port.
@@ -180,6 +183,16 @@ func main() {
 		bodyAll = slurp
 	}
 
+	var bodyLines [][]byte
+	if *bodyFileLines != "" {
+		slurp, err := ioutil.ReadFile(*bodyFileLines)
+		if err != nil {
+			errAndExit(err.Error())
+		}
+
+		bodyLines = bytes.Split(slurp, []byte("\n"))
+	}
+
 	var proxyURL *gourl.URL
 	if *proxyAddr != "" {
 		var err error
@@ -215,6 +228,7 @@ func main() {
 	w := &requester.Work{
 		Request:            req,
 		RequestBody:        bodyAll,
+		RequestBodyLines:   bodyLines,
 		N:                  num,
 		C:                  conc,
 		QPS:                q,
