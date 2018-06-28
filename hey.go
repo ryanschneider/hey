@@ -190,7 +190,13 @@ func main() {
 			errAndExit(err.Error())
 		}
 
-		bodyLines = bytes.Split(slurp, []byte("\n"))
+		l := bytes.Split(slurp, []byte("\n"))
+		// if trailing newline, last entry will be empty
+		if len(l[len(l)]) == 0 {
+			bodyLines = l[0 : len(l)-1]
+		} else {
+			bodyLines = l
+		}
 	}
 
 	var proxyURL *gourl.URL
